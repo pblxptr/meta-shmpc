@@ -1,0 +1,60 @@
+From 6d927f7f846e8ebbc5ad790358beeef308e83167 Mon Sep 17 00:00:00 2001
+From: bielu000 <bielu000@o2.pl>
+Date: Tue, 29 Jun 2021 11:01:11 +0200
+Subject: [PATCH] Added device tree overlay for hatch2sr.
+
+---
+ .../boot/dts/overlays/hatch2sr-overlay.dts    | 40 +++++++++++++++++++
+ 1 file changed, 40 insertions(+)
+ create mode 100644 arch/arm/boot/dts/overlays/hatch2sr-overlay.dts
+
+diff --git a/arch/arm/boot/dts/overlays/hatch2sr-overlay.dts b/arch/arm/boot/dts/overlays/hatch2sr-overlay.dts
+new file mode 100644
+index 000000000000..3034940bd0bb
+--- /dev/null
++++ b/arch/arm/boot/dts/overlays/hatch2sr-overlay.dts
+@@ -0,0 +1,40 @@
++/dts-v1/;
++/plugin/;
++
++&soc {
++    hatch2sr: hatch2sr {
++        compatible = "hatch2sr";
++        pwm-names = "motor1";
++        pwms  = <&pwm 0 10000000>;
++      
++        openpossensor-gpios  = <&gpio 23 17>;
++        closepossensor-gpios = <&gpio 24 17>;
++        relay-gpios =          <&gpio 25 0>;
++  };
++};
++
++&gpio {
++    sensors_pins: sensors_pins {
++        brcm,pins = <23 24>;
++        brcm,function = <0 0>;
++        brcm,pull = <2 2>;
++    };
++    relay_pins: relay_pins {
++        brcm,pins = <25>;
++        brcm,function = <1>;
++        brcm,pull = <1>;
++    };
++};
++
++/ {
++    __overrides__ {
++        openpos_sensor_pin    = <&hatch2sr>,"openpossensor-gpios:4";
++        openpos_sensor_flags  = <&hatch2sr>,"openpossensor-gpios:8";
++
++        closepos_sensor_pin   = <&hatch2sr>,"closepossensor-gpios:4";
++        closepos_sensor_flags = <&hatch2sr>,"closepossensor-gpios:8";
++
++        relay_pin             = <&hatch2sr>,"relay-gpios:4";
++        relay_flags           = <&hatch2sr>,"relay-gpios:8";
++  };
++};
+\ No newline at end of file
+-- 
+2.30.2
+
