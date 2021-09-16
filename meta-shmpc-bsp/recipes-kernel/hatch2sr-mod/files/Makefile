@@ -1,4 +1,4 @@
-obj-m := hatch2sr.o 
+obj-m := hatch2sr.o
 hatch2sr-objs := hatch2sr_driver.o hatch2sr_ctrl.o engine.o sensor.o relay.o
 
 SRC := $(shell pwd)
@@ -13,3 +13,6 @@ clean:
 	rm -f *.o *~ core .depend .*.cmd *.ko *.mod.c
 	rm -f Module.markers Module.symvers modules.order
 	rm -rf .tmp_versions Modules.symvers
+
+deploy:
+	cp hatch2sr.ko /home/pp/srv/tftp
