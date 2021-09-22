@@ -22,6 +22,8 @@ void relay_deinit(relay_t* relay)
   gpiod_set_value(relay->gpio, DEFAULT_STATE);
 	gpiod_unexport(relay->gpio);
   gpiod_put(relay->gpio);
+
+  relay->gpio = NULL;
 }
 
 void relay_set_to_open(relay_t* relay)

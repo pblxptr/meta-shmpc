@@ -6,8 +6,6 @@
 #include <linux/printk.h>
 #include <stddef.h>
 
-//TODO: Make dependencies null
-
 /* Private function declarations */
 static void sensor_handle_timer(struct timer_list* timer);
 
@@ -23,9 +21,10 @@ int sensor_init(sensor_t* sensor, struct gpio_desc* gpio, irq_handler_t irqhandl
 	gpiod_export(sensor->gpio, false);
 
 	if (request_irq(sensor->irq, irqhandler, IRQF_TRIGGER_FALLING,
-			"hatch2sr", NULL)) //TODO: Should it be null or func ptr?
+			"hatch2sr", NULL))
 	{
-    return -1;
+    pr_err("Cannot register IRQ: %d for sensor.\n", sensor->irq);
+    return -EIO;
 	}
 
   timer_setup(&sensor->timer, sensor_handle_timer, 0);
@@ -39,6 +38,8 @@ void sensor_deinit(sensor_t* sensor)
 	gpiod_unexport(sensor->gpio);
 	gpiod_put(sensor->gpio);
   del_timer_sync(&sensor->timer);
+
+  sensor->gpio = NULL;
 }
 
 sensor_value_t sensor_get_value(sensor_t* sensor)
@@ -74,6 +75,12 @@ void sensor_handle_timer(struct timer_list* timer)
 
   pr_info("%s\n", __FUNCTION__);
 
-  sensor = container_of_safe(timer, sensor_t, timer); //TODO: Add check
+  sensor = container_of_safe(timer, sensor_t, timer);
+
+  if (sensor == NULL) {
+    pr_err("Cannot handle sensor timer interrupt as the sensor is null\n");
+    return;
+  }
+
   sensor->is_active = true;
 }

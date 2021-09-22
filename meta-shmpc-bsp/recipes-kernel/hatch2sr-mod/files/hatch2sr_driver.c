@@ -38,21 +38,8 @@
 #include "engine.h"
 #include "hatch2sr_ctrl.h"
 
-
-#define EN_DEBOUNCE
-
-#ifdef EN_DEBOUNCE
-#include <linux/jiffies.h>
-extern unsigned long volatile jiffies;
-unsigned long old_jiffie = 0;
-#endif
-
 #define DEV_BASE_MINOR (0)
 #define DEV_COUNT      (1)
-
-#define OPEN_POSITION_SENSOR_IDX         (0)
-#define CLOSED_POSITION_SENSOR_IDX       (1)
-#define RELAY_POSITION_SENSOR_IDX        (2) //TODO: Possibly remove
 
 /*
 ** Function prototypes for attributes
@@ -73,7 +60,7 @@ static ssize_t hatch2sr_fop_write(struct file*, const char __user*, size_t, loff
 /*
 ** Driver struct
 */
-struct hatch2sr_device {
+static struct hatch2sr_device {
   dev_t num;
   struct cdev cdev;
   struct device* dev;
