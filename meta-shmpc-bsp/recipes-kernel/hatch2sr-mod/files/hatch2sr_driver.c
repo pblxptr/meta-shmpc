@@ -38,9 +38,6 @@
 #include "engine.h"
 #include "hatch2sr_ctrl.h"
 
-#define DEV_BASE_MINOR (0)
-#define DEV_COUNT      (1)
-
 /*
 ** Function prototypes for attributes
 */
@@ -52,7 +49,6 @@ ssize_t hatch2sr_store_attr_slow_start(struct device *dev, struct device_attribu
 /*
 **	Function prototypes for file operations
 */
-static int     hatch2sr_fop_open(struct inode*, struct file*);
 static int     hatch2sr_fop_release(struct inode*, struct file*);
 static ssize_t hatch2sr_fop_read(struct file*, char __user*, size_t, loff_t*);
 static ssize_t hatch2sr_fop_write(struct file*, const char __user*, size_t, loff_t*);
@@ -60,18 +56,15 @@ static ssize_t hatch2sr_fop_write(struct file*, const char __user*, size_t, loff
 /*
 ** Driver struct
 */
-static struct hatch2sr_device {
-  dev_t num;
-  struct cdev cdev;
-  struct device* dev;
-} hatch2sr_dev;
+struct hatch2sr_device {
+  struct miscdevice misc;
+};
 
 /*
 ** File operations
 */
 static struct file_operations fops = {
   .owner =    THIS_MODULE,
-  .open =     hatch2sr_fop_open,
   .release =  hatch2sr_fop_release,
   .read =     hatch2sr_fop_read,
   .write =    hatch2sr_fop_write
@@ -107,6 +100,12 @@ static const struct attribute_group hatch2sr_group = {
 static const struct attribute_group* hatch2sr_groups[] = {
   &hatch2sr_group,
   NULL
+};
+
+static struct class hatch2sr_class = {
+  .name = "hatch2sr",
+  .owner = THIS_MODULE,
+  .dev_groups = hatch2sr_groups
 };
 
 /* Function definitions for attributes
@@ -181,17 +180,6 @@ ssize_t hatch2sr_store_attr_slow_start(struct device *dev, struct device_attribu
   return count;
 }
 
-
-/* Function definitions for file operations
-** This function is called when somebody has called open driver file.
-*/
-static int	hatch2sr_fop_open(struct inode* inode, struct file* file)
-{
-  pr_info("%s\n", __FUNCTION__);
-
-  return 0;
-}
-
 /*
 ** This function is called when somebody has called close driver file.
 */
@@ -224,115 +212,106 @@ static ssize_t hatch2sr_fop_write(struct file* file, const char __user* buf, siz
 
 static int hatch2sr_driver_probe(struct platform_device* pdev)
 {
+  struct device* dev;
+  struct hatch2sr_device* priv;
   struct pwm_device* pwm_dev;
   struct gpio_desc* gpio_sensor_open;
   struct gpio_desc* gpio_sensor_closed;
   struct gpio_desc* gpio_relay;
 
-  hatch2sr_dev.dev = &pdev->dev;
+  dev = &pdev->dev;
 
   pr_info("Hello driver loaded.\n");
 
-  // Allocate Major number
-  if (alloc_chrdev_region(&hatch2sr_dev.num, DEV_BASE_MINOR, DEV_COUNT, "hatch2sr") < 0) {
-    dev_err(hatch2sr_dev.dev, "Cannot allocate major number for device.\n");
+  priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+  if (!priv)
+    return -ENOMEM;
+
+  //Register msic device
+  priv->misc.name = "hatch2sr";
+  priv->misc.minor = MISC_DYNAMIC_MINOR;
+  priv->misc.fops = &fops;
+
+  if (misc_register(&priv->misc) != 0) {
+    dev_err(dev, "Cannot register misc device\n");
     return -1;
   }
-  pr_info("Major: %d, Minor: %d \n", MAJOR(hatch2sr_dev.num), MINOR(hatch2sr_dev.num));
-
-  //Initializing cdev for driver
-  cdev_init(&hatch2sr_dev.cdev, &fops);
-
-  //Add character device
-  if ((cdev_add(&hatch2sr_dev.cdev, hatch2sr_dev.num, DEV_COUNT)) < 0){
-      dev_err(hatch2sr_dev.dev, "Cannot add the device to the system\n");
-      goto r_cdev_err;
-    }
 
   //Create device class
-  if ((hatch2sr_dev.dev->class = class_create(THIS_MODULE, "hatch2sr")) == NULL){ // unregister_chrdev_region + cdev_del
-      dev_err(hatch2sr_dev.dev, "Cannot create the struct class for device\n");
-      goto r_class_err;
+  if (class_register(&hatch2sr_class)) {
+    dev_err(dev, "class");
+    goto r_class_err;
   }
-  hatch2sr_dev.dev->class->dev_groups = hatch2sr_groups;
 
   //Create device nodes
-  if ((device_create(hatch2sr_dev.dev->class, NULL, hatch2sr_dev.num, NULL, "hatch2sr")) == NULL) {  // unregister_chrdev_region + cdev_del + class_destroy
-      dev_err(hatch2sr_dev.dev, "Cannot create the Device\n");
+  if ((device_create(&hatch2sr_class, dev, dev->devt, NULL, "hatch2sr")) == NULL) {  // unregister_chrdev_region + cdev_del + class_destroy
+      dev_err(dev, "Cannot create the Device\n");
       goto r_device_err;
   }
 
   //Configure peripherals
-  pwm_dev = pwm_get(hatch2sr_dev.dev, "motor1");
+  pwm_dev = devm_pwm_get(dev, "motor1");
 
   if (IS_ERR(pwm_dev)) {
-    dev_err(hatch2sr_dev.dev, "Cannot get pwm dev for engine.\n");
-    goto r_pwm_err;
+    dev_err(dev, "Cannot get pwm dev for engine.\n");
+    goto r_cleanup;
   }
 
-  gpio_sensor_open = gpiod_get(hatch2sr_dev.dev, "openpossensor", GPIOD_IN);
+  gpio_sensor_open = devm_gpiod_get(dev, "openpossensor", GPIOD_IN);
   if (IS_ERR(gpio_sensor_open)) {
-    dev_err(hatch2sr_dev.dev, "Cannot get gpio dev for open position sensor.\n");
-    goto r_openpos_sensor_err;
+    dev_err(dev, "Cannot get gpio dev for open position sensor.\n");
+    goto r_cleanup;
   }
 
-  gpio_sensor_closed = gpiod_get(hatch2sr_dev.dev, "closepossensor", GPIOD_IN);
+  gpio_sensor_closed = devm_gpiod_get(dev, "closepossensor", GPIOD_IN);
   if (IS_ERR(gpio_sensor_closed)) {
-    dev_err(hatch2sr_dev.dev, "Cannot get gpio dev for closed position sensor.\n");
-    goto r_closedpos_sensor_err;
+    dev_err(dev, "Cannot get gpio dev for closed position sensor.\n");
+    goto r_cleanup;
   }
 
-  gpio_relay = gpiod_get(hatch2sr_dev.dev, "relay", GPIOD_OUT_HIGH); //TODO: Should it be out_low?????
+  gpio_relay = devm_gpiod_get(dev, "relay", GPIOD_OUT_HIGH); //TODO: Should it be out_low?????
   if (IS_ERR(gpio_relay)) {
-    dev_err(hatch2sr_dev.dev, "Cannot get gpio dev for relayr.\n");
-    goto r_relay_err;
-  }
-
-  if (hatch2sr_init(pwm_dev, gpio_sensor_open, gpio_sensor_closed, gpio_relay)) {
-    dev_err(hatch2sr_dev.dev, "Cannot initialize logic for hatch2sr driver.\n");
-    goto r_hatch2sr_init_err;
+    dev_err(dev, "Cannot get gpio dev for relayr.\n");
+    goto r_cleanup;
   }
 
   //Initialize driver logic
+  if (hatch2sr_init(pwm_dev, gpio_sensor_open, gpio_sensor_closed, gpio_relay)) {
+    dev_err(dev, "Cannot initialize logic for hatch2sr driver.\n");
+    goto r_cleanup;
+  }
+
+  dev_set_drvdata(dev, priv);
   pr_info("Hatch2sr Kernel Module probed successfully test...\n");
 
   return 0;
 
-  r_hatch2sr_init_err:
-    gpiod_put(gpio_relay);
-  r_relay_err:
-    gpiod_put(gpio_sensor_closed);
-  r_closedpos_sensor_err:
-    gpiod_put(gpio_sensor_open);
-  r_openpos_sensor_err:
-    pwm_put(pwm_dev);
-  r_pwm_err:
-    device_destroy(hatch2sr_dev.dev->class, hatch2sr_dev.num);
+  r_cleanup:
+    device_destroy(&hatch2sr_class, dev->devt);
   r_device_err:
-    class_destroy(hatch2sr_dev.dev->class);
+    class_unregister(&hatch2sr_class);
   r_class_err:
-    cdev_del(&hatch2sr_dev.cdev);
-  r_cdev_err:
-    unregister_chrdev_region(hatch2sr_dev.num, DEV_COUNT);
+    misc_deregister(&priv->misc);
     return -1;
 }
 
 static int hatch2sr_driver_remove(struct platform_device *pdev)
 {
+  struct device* dev = &pdev->dev;
+  struct hatch2sr_device* priv = dev_get_drvdata(dev);
+
   printk("%s\n", __FUNCTION__);
 
   hatch2sr_deinit();
 
-  device_destroy(hatch2sr_dev.dev->class, hatch2sr_dev.num);
-  class_destroy(hatch2sr_dev.dev->class);
-  cdev_del(&hatch2sr_dev.cdev);
-  unregister_chrdev_region(hatch2sr_dev.num, DEV_COUNT);
+  device_destroy(&hatch2sr_class, dev->devt);
+  class_unregister(&hatch2sr_class);
+  misc_deregister(&priv->misc);
 
   pr_info("Hatch2sr Kernel Module removed successfully...\n");
 
   return 0;
 }
-
 
 static const struct of_device_id hatch2sr_match[] = {
   { .compatible = "hatch2sr", },

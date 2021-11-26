@@ -32,7 +32,6 @@ void engine_init(engine_t* engine, struct pwm_device* pwm)
 void engine_deinit(engine_t* engine)
 {
   engine_stop(engine);
-  pwm_put(engine->pwm);
 
   engine->pwm = NULL;
 }

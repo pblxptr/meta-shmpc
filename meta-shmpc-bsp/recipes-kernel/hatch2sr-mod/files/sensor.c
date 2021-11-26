@@ -13,19 +13,19 @@ static void sensor_handle_timer(struct timer_list* timer);
 int sensor_init(sensor_t* sensor, struct gpio_desc* gpio, irq_handler_t irqhandler)
 {
   sensor->gpio = gpio;
-	sensor->gpio_id = desc_to_gpio(sensor->gpio);
-	sensor->irq = gpio_to_irq(sensor->gpio_id);
-	sensor->is_active = true;
+  sensor->gpio_id = desc_to_gpio(sensor->gpio);
+  sensor->irq = gpio_to_irq(sensor->gpio_id);
+  sensor->is_active = true;
 
-	gpiod_direction_input(sensor->gpio);
-	gpiod_export(sensor->gpio, false);
+  gpiod_direction_input(sensor->gpio);
+  gpiod_export(sensor->gpio, false);
 
-	if (request_irq(sensor->irq, irqhandler, IRQF_TRIGGER_FALLING,
-			"hatch2sr", NULL))
-	{
+  if (request_irq(sensor->irq, irqhandler, IRQF_TRIGGER_FALLING,
+      "hatch2sr", NULL))
+  {
     pr_err("Cannot register IRQ: %d for sensor.\n", sensor->irq);
     return -EIO;
-	}
+  }
 
   timer_setup(&sensor->timer, sensor_handle_timer, 0);
 
@@ -34,9 +34,8 @@ int sensor_init(sensor_t* sensor, struct gpio_desc* gpio, irq_handler_t irqhandl
 
 void sensor_deinit(sensor_t* sensor)
 {
-	free_irq(sensor->irq, NULL);
-	gpiod_unexport(sensor->gpio);
-	gpiod_put(sensor->gpio);
+  free_irq(sensor->irq, NULL);
+  gpiod_unexport(sensor->gpio);
   del_timer_sync(&sensor->timer);
 
   sensor->gpio = NULL;
