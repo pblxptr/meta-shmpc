@@ -8,7 +8,7 @@ IMAGE_INSTALL = "\
   packagegroup-base \
 "
 
-IMAGE_FEATURES_append = " \
+IMAGE_FEATURES:append = " \
   ssh-server-dropbear \
   debug-tweaks \
   nfs-client \
