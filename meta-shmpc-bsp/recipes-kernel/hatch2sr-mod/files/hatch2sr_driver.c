@@ -295,7 +295,7 @@ static int hatch2sr_driver_probe(struct platform_device* pdev)
     return -1;
 }
 
-static int hatch2sr_driver:remove(struct platform_device *pdev)
+static int hatch2sr_driver_remove(struct platform_device *pdev)
 {
   struct device* dev = &pdev->dev;
   struct hatch2sr_device* priv = dev_get_drvdata(dev);
@@ -322,7 +322,7 @@ MODULE_DEVICE_TABLE(of, hatch2sr_match);
 
 static struct platform_driver hatch2sr_driver = {
   .probe	= hatch2sr_driver_probe,
-  .remove = hatch2sr_driver:remove,
+  .remove = hatch2sr_driver_remove,
   .driver = {
     .name	= "hatch2sr",
     .owner = THIS_MODULE,
