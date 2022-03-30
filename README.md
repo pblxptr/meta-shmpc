@@ -1,5 +1,5 @@
 # Smart Home Management Platform Control
-This repo contains layers designed to handle platform-specific concerns like bsp and distribution layer.
+BSP layer for hhctrl. Custom kernel drivers and configuration.
 
 Most importants parts are:
 - hatch2sr kernel driver (meta-shmpc-bsp/recipes-kernel/hatch2sr-mod), developed to control doors engine as well as doors (open/close) sensors
