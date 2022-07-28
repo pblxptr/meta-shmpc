@@ -15,4 +15,4 @@ clean:
 	rm -rf .tmp_versions Modules.symvers
 
 deploy:
-	cp hatch2sr.ko /home/pp/srv/tftp
+	cp hatch2sr.ko /srv/tftp

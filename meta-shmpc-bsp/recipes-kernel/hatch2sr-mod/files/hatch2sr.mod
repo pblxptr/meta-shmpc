@@ -1,0 +1,2 @@
+/home/pp/Projects/SmartHomeManagement/meta-shmpc/meta-shmpc-bsp/recipes-kernel/hatch2sr-mod/files/hatch2sr_driver.o /home/pp/Projects/SmartHomeManagement/meta-shmpc/meta-shmpc-bsp/recipes-kernel/hatch2sr-mod/files/hatch2sr_ctrl.o /home/pp/Projects/SmartHomeManagement/meta-shmpc/meta-shmpc-bsp/recipes-kernel/hatch2sr-mod/files/engine.o /home/pp/Projects/SmartHomeManagement/meta-shmpc/meta-shmpc-bsp/recipes-kernel/hatch2sr-mod/files/sensor.o /home/pp/Projects/SmartHomeManagement/meta-shmpc/meta-shmpc-bsp/recipes-kernel/hatch2sr-mod/files/relay.o
+

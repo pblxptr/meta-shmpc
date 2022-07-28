@@ -36,7 +36,9 @@ int hatch2sr_init(struct pwm_device* pwm, struct gpio_desc* openpos, struct  gpi
   }
 
   //Initialize engine
-  engine_init(&hatch.engine, pwm);
+  if (engine_init(&hatch.engine, pwm)) {
+    return -1;
+  }
 
   //Initialize sensors
   if (sensor_init(&hatch.openpos, openpos, openpos_sensor_isr)) {
@@ -104,6 +106,13 @@ void hatch2sr_close()
   engine_start(&hatch.engine);
 }
 
+void hatch2sr_stop()
+{
+  pr_info("%s\n", __FUNCTION__);
+
+  engine_stop(&hatch.engine);
+}
+
 hatch_status hatch2sr_get_status()
 {
   int open_sensor_val;
@@ -138,6 +147,16 @@ void hatch2sr_engine_set_slow_start(bool slow_start)
 bool hatch2sr_engine_get_slow_start(void)
 {
   return engine_get_slow_start(&hatch.engine);
+}
+
+int hatch2sr_engine_get_max_speed_pct(void)
+{
+  return engine_get_max_speed_pct(&hatch.engine);
+}
+
+int hatch2sr_engine_set_max_speed_pct(int max_speed_pct)
+{
+  return engine_set_max_speed_pct(&hatch.engine, max_speed_pct);
 }
 
 /* Hatch private function declarations */

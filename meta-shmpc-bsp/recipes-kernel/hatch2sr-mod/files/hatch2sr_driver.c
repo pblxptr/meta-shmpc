@@ -42,9 +42,11 @@
 ** Function prototypes for attributes
 */
 ssize_t hatch2sr_show_attr_status(struct device *dev, struct device_attribute *attr, char *buf);
-ssize_t hatch2sr_store_attr_change_positon(struct device *dev, struct device_attribute *attr, const char *buf, size_t count);
-ssize_t hatch2sr_show_attr_slow_start(struct device *dev, struct device_attribute *attr, char *buf);
-ssize_t hatch2sr_store_attr_slow_start(struct device *dev, struct device_attribute *attr, const char *buf, size_t count);
+ssize_t hatch2sr_store_attr_change_position(struct device *dev, struct device_attribute *attr, const char *buf, size_t count);
+ssize_t hatch2sr_show_attr_engine_slow_start(struct device *dev, struct device_attribute *attr, char *buf);
+ssize_t hatch2sr_store_attr_engine_slow_start(struct device *dev, struct device_attribute *attr, const char *buf, size_t count);
+ssize_t hatch2sr_show_attr_engine_max_speed(struct device *dev, struct device_attribute *attr, char *buf);
+ssize_t hatch2sr_store_attr_engine_max_speed(struct device *dev, struct device_attribute *attr, const char *buf, size_t count);
 
 /*
 **	Function prototypes for file operations
@@ -77,19 +79,26 @@ static DEVICE_ATTR(status, S_IRUGO,
   hatch2sr_show_attr_status,
   NULL
 );
-static DEVICE_ATTR(change_positon, S_IWUSR,
+static DEVICE_ATTR(change_position, S_IWUSR,
   NULL,
-  hatch2sr_store_attr_change_positon
+  hatch2sr_store_attr_change_position
 );
 static DEVICE_ATTR(slow_start, S_IRUGO | S_IWUSR,
-  hatch2sr_show_attr_slow_start,
-  hatch2sr_store_attr_slow_start
+  hatch2sr_show_attr_engine_slow_start,
+  hatch2sr_store_attr_engine_slow_start
 );
+
+static DEVICE_ATTR(engine_max_speed, S_IRUGO | S_IWUSR,
+  hatch2sr_show_attr_engine_max_speed,
+  hatch2sr_store_attr_engine_max_speed
+);
+
 
 static struct attribute* hatch2sr_attrs[] = {
   &dev_attr_status.attr,
-  &dev_attr_change_positon.attr,
+  &dev_attr_change_position.attr,
   &dev_attr_slow_start.attr,
+  &dev_attr_engine_max_speed.attr,
   NULL
 };
 
@@ -135,12 +144,16 @@ ssize_t hatch2sr_show_attr_status(struct device *dev, struct device_attribute *a
 /*
 ** This function is called while reading the open attribute.
 */
-ssize_t hatch2sr_store_attr_change_positon(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+ssize_t hatch2sr_store_attr_change_position(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
+  pr_info("%s\n", __FUNCTION__);
+
   if (sysfs_streq(buf, "open")) {
     hatch2sr_open();
   } else if (sysfs_streq(buf, "close")) {
     hatch2sr_close();
+  } else if (sysfs_streq(buf, "stop")) {
+    hatch2sr_stop();
   } else {
     return -EINVAL;
   }
@@ -151,9 +164,11 @@ ssize_t hatch2sr_store_attr_change_positon(struct device *dev, struct device_att
 /*
 ** This function is called while reading the slow_start attribute.
 */
-ssize_t hatch2sr_show_attr_slow_start(struct device *dev, struct device_attribute *attr, char *buf)
+ssize_t hatch2sr_show_attr_engine_slow_start(struct device *dev, struct device_attribute *attr, char *buf)
 {
   bool slow_start;
+
+  pr_info("%s\n", __FUNCTION__);
 
   slow_start = hatch2sr_engine_get_slow_start();
 
@@ -167,8 +182,10 @@ ssize_t hatch2sr_show_attr_slow_start(struct device *dev, struct device_attribut
 /*
 ** This function is called while writing to the slow_start attribute.
 */
-ssize_t hatch2sr_store_attr_slow_start(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+ssize_t hatch2sr_store_attr_engine_slow_start(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
+  pr_info("%s\n", __FUNCTION__);
+
   if (sysfs_streq(buf, "1")) {
     hatch2sr_engine_set_slow_start(true);
   } else if (sysfs_streq(buf, "0")) {
@@ -178,6 +195,43 @@ ssize_t hatch2sr_store_attr_slow_start(struct device *dev, struct device_attribu
   }
 
   return count;
+}
+
+/*
+** This function is called while reading engine's max spped.
+*/
+ssize_t hatch2sr_show_attr_engine_max_speed(struct device *dev, struct device_attribute *attr, char *buf)
+{
+  int max_speed;
+
+  pr_info("%s\n", __FUNCTION__);
+
+  max_speed = hatch2sr_engine_get_max_speed_pct();
+
+  return sysfs_emit(buf, "%d\n", max_speed);
+}
+
+/*
+** This function is called while setting engine's max spped.
+*/
+ssize_t hatch2sr_store_attr_engine_max_speed(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+  int max_speed;
+  int ret;
+
+  pr_info("%s\n", __FUNCTION__);
+
+  ret = kstrtouint(buf, 0, &max_speed); //0 means auto-detected base
+  if (ret) {
+    return ret;
+  } else {
+    ret = hatch2sr_engine_set_max_speed_pct(max_speed);
+    if (ret) {
+      return ret;
+    } else {
+      return count;
+    }
+  }
 }
 
 /*
@@ -221,11 +275,13 @@ static int hatch2sr_driver_probe(struct platform_device* pdev)
 
   dev = &pdev->dev;
 
-  pr_info("Hello driver loaded.\n");
+  pr_info("Loading hatch2sr Kernel Module\n");
 
   priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
   if (!priv)
     return -ENOMEM;
+
+  dev_set_drvdata(dev, priv);
 
   //Register msic device
   priv->misc.name = "hatch2sr";
@@ -281,7 +337,6 @@ static int hatch2sr_driver_probe(struct platform_device* pdev)
     goto r_cleanup;
   }
 
-  dev_set_drvdata(dev, priv);
   pr_info("Hatch2sr Kernel Module probed successfully test...\n");
 
   return 0;
@@ -292,6 +347,7 @@ static int hatch2sr_driver_probe(struct platform_device* pdev)
     class_unregister(&hatch2sr_class);
   r_class_err:
     misc_deregister(&priv->misc);
+    //TODO: Deallocate priv?? 
     return -1;
 }
 
@@ -307,6 +363,7 @@ static int hatch2sr_driver_remove(struct platform_device *pdev)
   device_destroy(&hatch2sr_class, dev->devt);
   class_unregister(&hatch2sr_class);
   misc_deregister(&priv->misc);
+  // kfree(priv);
 
   pr_info("Hatch2sr Kernel Module removed successfully...\n");
 

@@ -18,15 +18,17 @@ static void engine_handle_timer(struct timer_list* timer);
 static int speed_pct_to_duty_ns(int speed_pct, int period_ns);
 
 /* Public function defintitions */
-void engine_init(engine_t* engine, struct pwm_device* pwm)
+int engine_init(engine_t* engine, struct pwm_device* pwm)
 {
   engine->pwm = pwm;
   engine->state = ENGINE_STATE_IDLE;
   engine->slow_start = true;
-
+  engine->max_speed_pct = ENGINE_MAX_SPEED_PCT;
   //TODO: Once device tree is fixed, add pwm->state.period instaed of ENIGNE_PWM_PERIOD_NS
-  pwm_config(engine->pwm, speed_pct_to_duty_ns(0, ENGINE_PWM_PERIOD_NS), ENGINE_PWM_PERIOD_NS);
-  pwm_enable(engine->pwm);
+  if (pwm_config(engine->pwm, speed_pct_to_duty_ns(0, ENGINE_PWM_PERIOD_NS), ENGINE_PWM_PERIOD_NS)) {
+    return -1;
+  }
+  return 0;
 }
 
 void engine_deinit(engine_t* engine)
@@ -43,6 +45,7 @@ void engine_start(engine_t* engine)
   if (engine_get_state(engine) == ENGINE_STATE_RUNNING) {
     return;
   }
+  pwm_enable(engine->pwm);
   if (engine_is_slow_start_enabled(engine)) {
     engine_perform_slow_start(engine);
   } else {
@@ -62,8 +65,29 @@ void engine_stop(engine_t* engine)
 
   del_timer_sync(&engine->timer); //TODO: Is it ok to call it here? Do we need to check whether timer had been configured before?
   engine_set_speed_pct(engine, 0);
+  pwm_disable(engine->pwm);
 
   engine->state = ENGINE_STATE_IDLE;
+}
+
+int engine_get_max_speed_pct(engine_t* engine)
+{
+  pr_info("%s\n", __FUNCTION__);
+
+  return engine->max_speed_pct;
+}
+
+int engine_set_max_speed_pct(engine_t* engine, int value_pct)
+{
+  pr_info("%s\n", __FUNCTION__);
+
+  if (value_pct < ENGINE_MIN_SPEED_PCT || value_pct > ENGINE_MAX_SPEED_PCT) {
+    return -EINVAL;
+  }
+  else {
+    engine->max_speed_pct = value_pct;
+    return 0;
+  }
 }
 
 engine_state_t engine_get_state(engine_t* engine)
@@ -112,7 +136,7 @@ void engine_handle_timer(struct timer_list* timer)
 
   engine = container_of_safe(timer, engine_t, timer); //TODO: Add check
 
-  if (engine->speed >= ENGINE_MAX_SPEED_PCT) {
+  if (engine->speed >= engine->max_speed_pct) {
     return;
   }
 
@@ -125,4 +149,3 @@ int speed_pct_to_duty_ns(int speed_pct, int period_ns)
 {
   return period_ns / 100 * speed_pct;
 }
-
