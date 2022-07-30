@@ -293,6 +293,7 @@ static int hatch2sr_driver_probe(struct platform_device* pdev)
     return -1;
   }
 
+  //TODO: Class not needed, use misc class, is it possible?
   //Create device class
   if (class_register(&hatch2sr_class)) {
     dev_err(dev, "class");
