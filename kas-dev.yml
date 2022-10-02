@@ -1,0 +1,27 @@
+header:
+  version: 10
+machine: hhctrl
+distro: cygnos-dev
+target: hhctrl-image-dev
+repos:
+  meta-openembedded:
+    url: "https://git.openembedded.org/meta-openembedded"
+    refspec: kirkstone
+    layers:
+      meta-oe:
+      meta-python:
+      meta-networking:
+  poky:
+    url: "https://git.yoctoproject.org/git/poky"
+    refspec: kirkstone
+    layers:
+      meta:
+      meta-poky:
+      meta-yocto-bsp:
+  meta-raspberrypi:
+    url: "https://git.yoctoproject.org/git/meta-raspberrypi"
+    refspec: kirkstone
+  meta-shmpc:
+    layers:
+      meta-shmpc-bsp:
+      meta-shmpc-os:
