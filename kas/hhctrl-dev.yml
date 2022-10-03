@@ -2,7 +2,7 @@ header:
   version: 10
 machine: hhctrl
 distro: cygnos-dev
-target: hhctrl-image-dev
+target: core-image-minimal
 repos:
   meta-openembedded:
     url: "https://git.openembedded.org/meta-openembedded"

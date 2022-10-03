@@ -1,0 +1,8 @@
+rootfs=`cat /proc/cmdline | sed -e 's/^.*root=//' -e 's/ .*$//'`
+        if [ $rootfs == '/dev/mmcblk0p2' ];then
+                selection="-e stable,copy2"
+        else
+                selection="-e stable,copy1"
+        fi
+
+SWUPDATE_ARGS="${selection} -f /etc/swupdate.cfg"
