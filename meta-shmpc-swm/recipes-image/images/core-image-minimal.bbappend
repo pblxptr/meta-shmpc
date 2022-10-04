@@ -1,9 +1,9 @@
-SRC_URI = "\
-    file://emmcsetup.lua \
-    file://sw-description \
-"
+#SRC_URI = "\
+#    file://emmcsetup.lua \
+#    file://sw-description \
+#"
 
-FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
+#FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 inherit core-image
 
@@ -11,5 +11,7 @@ IMAGE_INSTALL:append = "\
 	libubootenv-bin \
 	swupdate \
 	swupdate-progress \
+    swupdate-www \
 	u-boot-env \
+    util-linux-sfdisk \
 "

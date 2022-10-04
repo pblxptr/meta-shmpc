@@ -16,3 +16,12 @@ IMAGE_DEPENDS = "core-image-minimal"
 SWUPDATE_IMAGES = "core-image-minimal"
 
 SWUPDATE_IMAGES_FSTYPES[core-image-minimal] = ".ext4.gz"
+
+IMAGE_INSTALL:append = "\
+	libubootenv-bin \
+	swupdate \
+	swupdate-progress \
+    swupdate-www \
+	u-boot-env \
+    util-linux-sfdisk \
+"

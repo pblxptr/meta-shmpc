@@ -2,7 +2,8 @@ software =
 {
 	version = "0.1.0";
 
-	raspberrypi = {
+	hhctrl = {
+		hardware-compatibility: ["1.0"];
 		stable = {
 			copy1 : {
 				images: (
