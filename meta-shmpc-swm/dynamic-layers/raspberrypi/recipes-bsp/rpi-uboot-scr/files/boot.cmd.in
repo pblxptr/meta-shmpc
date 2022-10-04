@@ -1,0 +1,11 @@
+fdt addr ${fdt_addr} && fdt get value bootargs /chosen bootargs
+fatload mmc 0:1 ${kernel_addr_r} @@KERNEL_IMAGETYPE@@
+
+if env exists active_mirror; then
+else
+    setenv active_mirror 2;
+    saveenv;
+fi
+
+setenv bootargs "${bootargs} root=/dev/mmcblk0p${active_mirror}";
+@@KERNEL_BOOTCMD@@ ${kernel_addr_r} - ${fdt_addr}
